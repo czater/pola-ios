@@ -7,6 +7,8 @@ final class ReportProblemViewController: UIViewController {
     private let reportManager: ReportManager
     private let keyboardManager: KeyboardManager
     private let reason: ReportProblemReason
+    private let analytics: AnalyticsHelper
+    private let isImageEnabled: Bool
     private var imageCount: Int = 0
 
     private var castedView: ReportProblemView! {
@@ -16,11 +18,15 @@ final class ReportProblemViewController: UIViewController {
     init(reason: ReportProblemReason,
          productImageManager: ProductImageManager,
          reportManager: ReportManager,
-         keyboardManager: KeyboardManager) {
+         keyboardManager: KeyboardManager,
+         analyticsProvider: AnalyticsProvider,
+         isImageEnabled: Bool = false) {
         self.reason = reason
         self.productImageManager = productImageManager
         self.reportManager = reportManager
         self.keyboardManager = keyboardManager
+        self.isImageEnabled = isImageEnabled
+        analytics = AnalyticsHelper(provider: analyticsProvider)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -29,16 +35,17 @@ final class ReportProblemViewController: UIViewController {
     }
 
     override func loadView() {
-        view = ReportProblemView()
+        view = ReportProblemView(isImageEnabled: isImageEnabled)
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         keyboardManager.delegate = castedView
-        castedView.sendButtom.addTarget(self, action: #selector(sendRaport), for: .touchUpInside)
+        castedView.sendButton.addTarget(self, action: #selector(sendRaport), for: .touchUpInside)
         castedView.closeButton.addTarget(self, action: #selector(close), for: .touchUpInside)
         castedView.imagesContainer.delegate = self
+        castedView.descriptionTextView.delegate = self
 
         initializeImages()
         updateReportButtonState()
@@ -66,7 +73,7 @@ final class ReportProblemViewController: UIViewController {
     }
 
     private func updateReportButtonState() {
-        castedView.sendButtom.isEnabled = imageCount > 0
+        castedView.sendButton.isEnabled = imageCount > 0 || !castedView.descriptionTextView.text.isEmpty
     }
 
     @objc
@@ -80,9 +87,9 @@ final class ReportProblemViewController: UIViewController {
 
         reportManager
             .send(report: report)
-            .done { [weak self, reason, productImageManager] _ in
+            .done { [weak self, reason, productImageManager, analytics] _ in
                 KVNProgress.showSuccess(withStatus: R.string.localizable.reportSent())
-                AnalyticsHelper.reportSent(barcode: reason.barcode)
+                analytics.reportSent(barcode: reason.barcode)
                 _ = productImageManager.removeImages(for: reason)
                 self?.close()
             }.catch { error in
@@ -110,37 +117,26 @@ extension ReportProblemViewController: ReportImagesContainerViewDelegate {
     }
 
     func imagesContainerTapAddButton() {
-        let cancelTitle = R.string.localizable.cancel()
-        let chooseTitle = R.string.localizable.chooseFromLibrary()
-        let sheet: UIActionSheet
+        let strings = R.string.localizable.self
+        let alertVC = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         if UIImagePickerController.isSourceTypeAvailable(.camera) {
-            sheet = UIActionSheet(title: nil,
-                                  delegate: self,
-                                  cancelButtonTitle: cancelTitle,
-                                  destructiveButtonTitle: nil,
-                                  otherButtonTitles: R.string.localizable.takeAPhoto(), chooseTitle)
-        } else {
-            sheet = UIActionSheet(title: nil,
-                                  delegate: self,
-                                  cancelButtonTitle: cancelTitle,
-                                  destructiveButtonTitle: nil,
-                                  otherButtonTitles: chooseTitle)
+            alertVC.addAction(UIAlertAction(title: strings.takeAPhoto(),
+                                            style: .default) { [weak self] _ in
+                    self?.openImagePicker(source: .camera)
+          })
         }
-        sheet.show(in: view)
+        alertVC.addAction(UIAlertAction(title: strings.chooseFromLibrary(),
+                                        style: .default) { [weak self] _ in
+                self?.openImagePicker(source: .photoLibrary)
+        })
+        alertVC.addAction(UIAlertAction(title: strings.cancel(), style: .cancel))
+        present(alertVC, animated: true, completion: nil)
     }
-}
 
-extension ReportProblemViewController: UIActionSheetDelegate {
-    func actionSheet(_ actionSheet: UIActionSheet, clickedButtonAt buttonIndex: Int) {
-        guard actionSheet.cancelButtonIndex != buttonIndex else {
-            return
-        }
-
-        let isCamera = UIImagePickerController.isSourceTypeAvailable(.camera) && buttonIndex == 1
-
+    private func openImagePicker(source: UIImagePickerController.SourceType) {
         let imagePicker = UIImagePickerController()
         imagePicker.modalPresentationStyle = .currentContext
-        imagePicker.sourceType = isCamera ? .camera : .photoLibrary
+        imagePicker.sourceType = source
         imagePicker.delegate = self
         present(imagePicker, animated: true, completion: nil)
     }
@@ -162,6 +158,12 @@ extension ReportProblemViewController: UIImagePickerControllerDelegate {
         imageCount += 1
         updateReportButtonState()
         dismiss(animated: true, completion: nil)
+    }
+}
+
+extension ReportProblemViewController: UITextViewDelegate {
+    func textViewDidChange(_: UITextView) {
+        updateReportButtonState()
     }
 }
 

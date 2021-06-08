@@ -3,21 +3,9 @@ import XCTest
 final class EnterBarcodePageUITests: PolaUITestCase {
     private var page: EnterBarcodePage!
 
-    private var pasteboard: String? {
-        get {
-            UIPasteboard.general.strings?.first
-        }
-        set {
-            UIPasteboard.general.strings = newValue != nil ? [newValue!] : []
-        }
-    }
-
     override func setUp() {
         super.setUp()
-        recordMode = false
-
-        pasteboard = nil
-        page = startingPageObject.tapEnterBarcodeButton()
+        page = startingPageObject.tapEnterBarcodeButton().setPasteboard(nil)
     }
 
     override func tearDown() {
@@ -70,28 +58,42 @@ final class EnterBarcodePageUITests: PolaUITestCase {
     }
 
     func testContextMenu_whenNothingIsTypedAndPasteboardIsClear() {
-        page.longTapOnBarcodeLabe().done()
+        page.longTapOnBarcodeLabel().done()
 
         snapshotVerifyView()
     }
 
-    func testContextMenu_whenNothingIsTypedAndPasteboardIsNotClear() {
-        pasteboard = "123456"
-        page.longTapOnBarcodeLabe().done()
+    func testContextMenu_whenNothingIsTypedAndPasteboardIsNotClear() throws {
+        throw skipTest(issueNumber: 151)
+        page.setPasteboard("123456")
+            .longTapOnBarcodeLabel()
+            .waitForPasteboardInfoDissappear()
+            .wait(time: 20)
+            .done()
 
         snapshotVerifyView()
     }
 
     func testContextMenu_whenSomethingIsTyped() {
-        page.inputBarcode("12345").longTapOnBarcodeLabe().done()
+        page.inputBarcode("12345").longTapOnBarcodeLabel().done()
 
         snapshotVerifyView()
     }
 
     func testPaste() {
-        pasteboard = "123456789"
-        page.longTapOnBarcodeLabe()
+        page.setPasteboard("123456789")
+            .longTapOnBarcodeLabel()
             .tapPasteAction()
+            .waitForPasteActionDisappear()
+            .done()
+
+        snapshotVerifyView()
+    }
+
+    func testPasteAndActivate() {
+        page.setPasteboard("123456789")
+            .longTapOnBarcodeLabel()
+            .tapPasteAndActivateAction()
             .waitForPasteActionDisappear()
             .done()
 
@@ -100,7 +102,7 @@ final class EnterBarcodePageUITests: PolaUITestCase {
 
     func testDelete() {
         page.inputBarcode("12345")
-            .longTapOnBarcodeLabe()
+            .longTapOnBarcodeLabel()
             .tapDeleteAction()
             .waitForDeleteActionDisappear()
             .done()
@@ -111,24 +113,24 @@ final class EnterBarcodePageUITests: PolaUITestCase {
     func testCut() {
         let input = "12345"
         page.inputBarcode(input)
-            .longTapOnBarcodeLabe()
+            .longTapOnBarcodeLabel()
             .tapCutAction()
             .waitForDeleteActionDisappear()
             .done()
 
         snapshotVerifyView()
-        XCTAssertEqual(pasteboard, input)
+        XCTAssertEqual(page.pasteboard, input)
     }
 
     func testCopy() {
         let input = "12345"
         page.inputBarcode(input)
-            .longTapOnBarcodeLabe()
+            .longTapOnBarcodeLabel()
             .tapCopyAction()
             .waitForDeleteActionDisappear()
             .done()
 
         snapshotVerifyView()
-        XCTAssertEqual(pasteboard, input)
+        XCTAssertEqual(page.pasteboard, input)
     }
 }

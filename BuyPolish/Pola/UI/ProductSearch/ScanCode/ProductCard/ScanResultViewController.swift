@@ -9,18 +9,16 @@ protocol ScanResultViewControllerDelegate: AnyObject {
 final class ScanResultViewController: UIViewController {
     let barcode: String
     private let productManager: ProductManager
+    private let analytics: AnalyticsHelper
     private(set) var scanResult: ScanResult?
 
     weak var delegate: ScanResultViewControllerDelegate?
 
-    init(barcode: String, productManager: ProductManager) {
+    init(barcode: String, productManager: ProductManager, analyticsProvider: AnalyticsProvider) {
         self.barcode = barcode
         self.productManager = productManager
+        analytics = AnalyticsHelper(provider: analyticsProvider)
         super.init(nibName: nil, bundle: nil)
-    }
-
-    convenience init(barcode: String) {
-        self.init(barcode: barcode, productManager: DI.container.resolve(ProductManager.self)!)
     }
 
     required init?(coder _: NSCoder) {
@@ -49,8 +47,8 @@ final class ScanResultViewController: UIViewController {
         castedView.loadingProgressView.startAnimating()
         firstly {
             productManager.retrieveProduct(barcode: barcode)
-        }.done { [weak self] scanResult in
-            AnalyticsHelper.received(productResult: scanResult)
+        }.done { [weak self, analytics] scanResult in
+            analytics.received(productResult: scanResult)
             if let self = self {
                 self.fillViewWithData(scanResult: scanResult)
                 self.delegate?.scanResultViewController(self, didFetchResult: scanResult)
@@ -64,6 +62,33 @@ final class ScanResultViewController: UIViewController {
         }
     }
 
+    private func fillTitleLabel(scanResult: ScanResult) {
+        if let name = scanResult.name, name.isNotEmpty {
+            castedView.titleLabel.text = name
+        } else if let company = scanResult.companies?.first {
+            castedView.titleLabel.text = company.name
+        }
+    }
+
+    private func fillReportButton(scanResult: ScanResult) {
+        if let report = scanResult.report {
+            castedView.reportProblemButton.setTitle(report.buttonText?.uppercased(), for: .normal)
+            castedView.reportProblemButton.setReportType(report.buttonType)
+            castedView.reportInfoLabel.text = report.text
+        } else {
+            castedView.reportProblemButton.isHidden = true
+            castedView.reportInfoLabel.isHidden = true
+        }
+    }
+
+    private func fillProgressView(scanResult: ScanResult) {
+        if scanResult.companies?.count == 1,
+            let company = scanResult.companies?.first,
+            let plScore = company.plScore {
+            castedView.mainProgressView.progress = CGFloat(plScore) / 100.0
+        }
+    }
+
     private func fillViewWithData(scanResult: ScanResult) {
         self.scanResult = scanResult
         let contentViewController = ResultContentViewControllerFactory.create(scanResult: scanResult)
@@ -71,11 +96,8 @@ final class ScanResultViewController: UIViewController {
         castedView.contentView = contentViewController.view
         contentViewController.didMove(toParent: self)
 
-        castedView.titleLabel.text = scanResult.name
-
-        if let plScore = scanResult.plScore {
-            castedView.mainProgressView.progress = CGFloat(plScore) / 100.0
-        }
+        fillTitleLabel(scanResult: scanResult)
+        fillProgressView(scanResult: scanResult)
 
         switch scanResult.cardType {
         case .grey:
@@ -86,24 +108,24 @@ final class ScanResultViewController: UIViewController {
             castedView.mainProgressView.backgroundColor = Theme.lightBackgroundColor
         }
 
-        castedView.reportProblemButton.setTitle(scanResult.reportButtonText?.uppercased(), for: .normal)
-        switch scanResult.reportButtonType {
-        case .red:
-            castedView.reportProblemButton.setTitleColor(Theme.clearColor, for: .normal)
-            castedView.reportProblemButton.setBackgroundImage(UIImage.image(color: Theme.actionColor), for: .normal)
-        case .white:
-            castedView.reportProblemButton.layer.borderColor = Theme.actionColor.cgColor
-            castedView.reportProblemButton.layer.borderWidth = 1
-            castedView.reportProblemButton.setTitleColor(Theme.actionColor, for: .normal)
-            castedView.reportProblemButton.setTitleColor(Theme.clearColor, for: .highlighted)
-            castedView.reportProblemButton.setBackgroundImage(UIImage.image(color: UIColor.clear), for: .normal)
-            castedView.reportProblemButton.setBackgroundImage(UIImage.image(color: Theme.actionColor), for: .highlighted)
-        }
-
-        castedView.reportInfoLabel.text = scanResult.reportText
-        castedView.heartImageView.isHidden = !(scanResult.isFriend ?? false)
+        fillReportButton(scanResult: scanResult)
+        castedView.heartImageView.isHidden = !scanResult.isFriend
 
         UIAccessibility.post(notification: .screenChanged, argument: castedView.titleLabel)
+    }
+
+    func setExpandedCard() {
+        castedView.titleLabel.numberOfLines = 0
+        castedView.heartImageView.isHidden = true
+        castedView.setNeedsLayout()
+    }
+
+    func setCollapsedCard() {
+        if let scanResult = self.scanResult {
+            castedView.titleLabel.numberOfLines = 1
+            castedView.heartImageView.isHidden = scanResult.isNotFriend
+            castedView.setNeedsLayout()
+        }
     }
 
     @objc
@@ -111,7 +133,7 @@ final class ScanResultViewController: UIViewController {
         guard let productId = scanResult?.productId else {
             return
         }
-        AnalyticsHelper.reportShown(barcode: barcode)
+        analytics.reportShown(barcode: barcode)
         let vc = DI.container.resolve(ReportProblemViewController.self,
                                       argument: ReportProblemReason.product(productId, barcode))!
         present(vc, animated: true, completion: nil)
@@ -119,7 +141,7 @@ final class ScanResultViewController: UIViewController {
 
     @objc
     func polasFriendsButtonTapped() {
-        AnalyticsHelper.polasFriendsOpened()
+        analytics.polasFriendsOpened()
         let vc = AboutWebViewController(url: "https://www.pola-app.pl/m/friends",
                                         title: R.string.localizable.polaSFriends())
         vc.addCloseButton()
@@ -141,7 +163,15 @@ extension ScanResultViewController: CardStackViewControllerCard {
     func didBecameExpandedCard() {
         castedView.scrollViewForContentView.flashScrollIndicators()
         if let scanResult = scanResult {
-            AnalyticsHelper.opensCard(productResult: scanResult)
+            analytics.opensCard(productResult: scanResult)
         }
+    }
+
+    func willBecameExpandedCard() {
+        setExpandedCard()
+    }
+
+    func willBecameCollapsedCard() {
+        setCollapsedCard()
     }
 }

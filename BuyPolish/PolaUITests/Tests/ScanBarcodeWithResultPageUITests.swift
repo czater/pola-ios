@@ -3,7 +3,6 @@ import XCTest
 final class ScanBarcodeWithResultPageUITests: PolaUITestCase {
     override func setUp() {
         super.setUp()
-        recordMode = false
     }
 
     func testGustawCompanyShouldBeMarkedAsPolaFriends() {
@@ -22,10 +21,10 @@ final class ScanBarcodeWithResultPageUITests: PolaUITestCase {
         testResultPage(codeData: CodeData.ISBN)
     }
 
-    func testResultPage(codeData: CodeData, file: StaticString = #file, line: UInt = #line) {
+    func testResultPage(codeData: CodeData, file: StaticString = #file, testName: String = #function, line: UInt = #line) {
         startingPageObject.enterCodeAndWaitForResult(codeData: codeData, file: file, line: line).done()
 
-        snapshotVerifyView(file: file, line: line)
+        snapshotVerifyView(file: file, testName: testName, line: line)
     }
 
     func testMultiplyResultPages() {
@@ -42,6 +41,25 @@ final class ScanBarcodeWithResultPageUITests: PolaUITestCase {
         startingPageObject
             .enterCodeAndWaitForResult(codeData: CodeData.Gustaw)
             .enterCodeAndWaitForResult(codeData: CodeData.Gustaw)
+            .done()
+
+        snapshotVerifyView()
+    }
+
+    func testRequestReview() {
+        let result = startingPageObject
+            .enterCodeAndWaitForResult(codeData: CodeData.Gustaw)
+            .enterCodeAndWaitForResult(codeData: CodeData.Koral)
+            .enterCodeAndOpenCompanyResult(codeData: CodeData.Naleczowianka)
+            .swipeToCollapse()
+            .isReviewRequestVisible()
+
+        XCTAssert(result, "Application rating alert did not appear")
+    }
+
+    func testLongNameCollapsed() {
+        startingPageObject
+            .enterCodeAndWaitForResult(codeData: CodeData.Krasnystaw)
             .done()
 
         snapshotVerifyView()

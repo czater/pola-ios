@@ -1,4 +1,5 @@
 gem 'fastlane-plugin-menigit'
 gem 'fastlane-plugin-synx'
 gem 'fastlane-plugin-swiftformat'
-gem 'fastlane-plugin-xcodebuild_analyze'
+gem 'fastlane-plugin-versioning'
+gem 'fastlane-plugin-delete_files'

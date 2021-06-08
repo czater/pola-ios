@@ -1,56 +1,5 @@
 default_platform(:ios)
-swiftformat_executable = "Pods/SwiftFormat/CommandLineTool/swiftformat"
 
-platform :ios do
-  lane :tests do
-    check_project_structure
-    check_formatting
-    unit_tests
-    ui_tests
-  end
-
-  lane :unit_tests do
-    analyze_output_dir= "analyze_results"
-    xcodebuild(
-      scheme: "Pola",
-      destination: "name=iPhone 8",
-      analyze: true,
-      test: true,
-      xcargs: "CLANG_ANALYZER_OTHER_FLAGS= CLANG_ANALYZER_OUTPUT=html CLANG_ANALYZER_OUTPUT_DIR=#{analyze_output_dir} RUN_CLANG_STATIC_ANALYZER=YES"
-    )
-    ensure_no_results_from_xcodebuild_analyze(
-      path: analyze_output_dir,
-      prune: true
-    )
-  end
-
-  lane :ui_tests do
-    scan(scheme:"PolaUITests")
-  end
-
-  lane :check_project_structure do
-    synx
-    ensure_no_changes(
-      path: "Pola.xcodeproj",
-      show_diff: false,
-      error_message: "Project structure is different than synx output. Run `fastlane ios format` to synchronize project with file structure."
-    )
-  end
-
-  lane :check_formatting do
-    swiftformat(
-      executable: swiftformat_executable,
-      lint: true
-    )
-
-  end
-
-  lane :format do
-    synx
-
-    swiftformat(
-      executable: swiftformat_executable,
-    )
-  end
-
-end
+import('Fastfile_deploy.rb')
+import('Fastfile_git.rb')
+import('Fastfile_tests.rb')

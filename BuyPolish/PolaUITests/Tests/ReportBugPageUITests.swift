@@ -5,7 +5,6 @@ final class ReportBugPageUITests: PolaUITestCase {
 
     override func setUp() {
         super.setUp()
-        recordMode = false
         continueAfterFailure = true
 
         page = startingPageObject
@@ -22,13 +21,15 @@ final class ReportBugPageUITests: PolaUITestCase {
         snapshotVerifyView()
     }
 
-    func testCloseReportBugPage() {
+    func testCloseReportBugPage() throws {
+        throw skipTest(issueNumber: 159)
         page.tapCloseButton().done()
 
         snapshotVerifyView()
     }
 
-    func testAddImage() {
+    func testAddImage() throws {
+        throw skipTest(issueNumber: 150)
         page.addPhoto().done()
 
         snapshotVerifyView()
@@ -36,7 +37,9 @@ final class ReportBugPageUITests: PolaUITestCase {
         page.tapDeleteImageButton().done()
     }
 
-    func testAddImageTapBackAndReturnToReportBugPage_shouldDisplayPreviousPickedImage() {
+    func testAddImageTapBackAndReturnToReportBugPage_shouldDisplayPreviousPickedImage() throws {
+        throw skipTest(issueNumber: 150)
+
         page.addPhoto()
             .tapCloseButton()
             .tapReportBugButton()
@@ -47,7 +50,8 @@ final class ReportBugPageUITests: PolaUITestCase {
         page.tapDeleteImageButton().done()
     }
 
-    func testDeleteImage() {
+    func testDeleteImage() throws {
+        throw skipTest(issueNumber: 150)
         page.addPhoto()
             .tapDeleteImageButton().done()
 
@@ -55,14 +59,15 @@ final class ReportBugPageUITests: PolaUITestCase {
     }
 
     func testTypeDescription() {
-        page.typeDescription("Kawał dobrej aplikacji ;)")
+        page.typeDescription(";)")
             .tapDescriptionLabel()
             .done()
 
         snapshotVerifyView()
     }
 
-    func testSendReport_shouldRemoveImagesAfterSendReport() {
+    func testSendReport_shouldRemoveImagesAfterSendReport() throws {
+        throw skipTest(issueNumber: 150)
         page.addPhoto()
             .typeDescription("Raport testowy")
             .tapDescriptionLabel()

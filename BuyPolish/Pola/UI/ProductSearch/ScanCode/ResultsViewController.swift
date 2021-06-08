@@ -1,4 +1,5 @@
 import AudioToolbox
+import StoreKit
 import UIKit
 
 protocol ResultsViewControllerDelegate: AnyObject {
@@ -10,6 +11,7 @@ protocol ResultsViewControllerDelegate: AnyObject {
 final class ResultsViewController: UIViewController {
     private let stackViewController = CardStackViewController()
     private let barcodeValidator: BarcodeValidator
+    private let analytics: AnalyticsHelper
     private var donateURL: URL?
 
     weak var delegate: ResultsViewControllerDelegate?
@@ -24,8 +26,13 @@ final class ResultsViewController: UIViewController {
         stackViewController.cards.last as? ScanResultViewController
     }
 
-    init(barcodeValidator: BarcodeValidator) {
+    private var resultCardCount: Int {
+        stackViewController.cardCount
+    }
+
+    init(barcodeValidator: BarcodeValidator, analyticsProvider: AnalyticsProvider) {
         self.barcodeValidator = barcodeValidator
+        analytics = AnalyticsHelper(provider: analyticsProvider)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -57,13 +64,12 @@ final class ResultsViewController: UIViewController {
 
         guard barcodeValidator.isValid(barcode: barcode) else {
             isAddingCardEnabled = false
-            let alertView = UIAlertView.showErrorAlert(R.string.localizable.notValidBarcodePleaseTryAgain())
-            alertView.delegate = self
+            showError(message: R.string.localizable.notValidBarcodePleaseTryAgain())
             return
         }
 
         if addCardAndDownloadDetails(barcode) {
-            AnalyticsHelper.barcodeScanned(barcode, type: sourceType)
+            analytics.barcodeScanned(barcode, type: sourceType)
             castedView.infoTextVisible = false
             AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
         }
@@ -77,10 +83,20 @@ final class ResultsViewController: UIViewController {
 
     @objc
     private func donateTapped() {
-        AnalyticsHelper.donateOpened(barcode: lastResultViewController?.barcode)
+        analytics.donateOpened(barcode: lastResultViewController?.barcode)
         if let donateURL = donateURL {
-            UIApplication.shared.openURL(donateURL)
+            UIApplication.shared.open(donateURL)
         }
+    }
+
+    fileprivate func showError(message: String) {
+        showAlert(message: message) { [weak self] in
+            self?.isAddingCardEnabled = true
+        }
+    }
+
+    fileprivate func requestReview() {
+        SKStoreReviewController.requestReview()
     }
 }
 
@@ -94,15 +110,8 @@ extension ResultsViewController: ScanResultViewControllerDelegate {
     }
 
     func scanResultViewController(_ vc: ScanResultViewController, didFailFetchingScanResultWithError _: Error) {
-        let alertView = UIAlertView.showErrorAlert(R.string.localizable.cannotFetchProductInfoFromServerPleaseTryAgain())
-        alertView.delegate = self
+        showError(message: R.string.localizable.cannotFetchProductInfoFromServerPleaseTryAgain())
         stackViewController.remove(card: vc)
-    }
-}
-
-extension ResultsViewController: UIAlertViewDelegate {
-    func alertView(_: UIAlertView, clickedButtonAt _: Int) {
-        isAddingCardEnabled = true
     }
 }
 
@@ -111,6 +120,9 @@ extension ResultsViewController: CardStackViewControllerDelegate {
         delegate?.resultsViewControllerDidCollapse()
         castedView.donateButton.isHidden = !(lastResultViewController?.scanResult?.donate?.showButton ?? false)
         isAddingCardEnabled = true
+        if resultCardCount >= 3 {
+            requestReview()
+        }
     }
 
     func stackViewController(_: CardStackViewController, willAddCard _: UIViewController) {

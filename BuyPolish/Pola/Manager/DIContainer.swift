@@ -18,7 +18,7 @@ final class DI {
         }
 
         container.register(KeyboardManager.self) { resolver in
-            KeyboardManager(notificationCenter: resolver.resolve(NotificationCenter.self)!)
+            NotificationCenterKeyboardManager(notificationCenter: resolver.resolve(NotificationCenter.self)!)
         }
 
         container.register(FileManager.self) { _ in
@@ -41,6 +41,10 @@ final class DI {
             FlashlightManager()
         }
 
+        container.register(AnalyticsProvider.self) { _ in
+            FirebaseAnalyticsProvider()
+        }
+
         container.register(ProductManager.self) { resolver in
             ProductManager(dataRequestFactory: resolver.resolve(DataRequestFactory.self)!)
         }
@@ -59,7 +63,7 @@ final class DI {
         }
 
         container.register(ReportManager.self) { resolver in
-            ReportManager(dataRequestFactory: resolver.resolve(DataRequestFactory.self)!,
+            PolaReportManager(dataRequestFactory: resolver.resolve(DataRequestFactory.self)!,
                           uploadMediaRequestFactory: resolver.resolve(MediaUploadRequestFactory.self)!,
                           fileManager: resolver.resolve(FileManager.self)!)
         }
@@ -76,20 +80,22 @@ final class DI {
             ReportProblemViewController(reason: reason,
                                         productImageManager: resolver.resolve(ProductImageManager.self)!,
                                         reportManager: resolver.resolve(ReportManager.self)!,
-                                        keyboardManager: resolver.resolve(KeyboardManager.self)!)
+                                        keyboardManager: resolver.resolve(KeyboardManager.self)!,
+                                        analyticsProvider: resolver.resolve(AnalyticsProvider.self)!)
         }
 
         container.register(ScanResultViewController.self) { resolver, barcode in
             ScanResultViewController(barcode: barcode,
-                                     productManager: resolver.resolve(ProductManager.self)!)
+                                     productManager: resolver.resolve(ProductManager.self)!,
+                                     analyticsProvider: resolver.resolve(AnalyticsProvider.self)!)
         }
 
         container.register(ResultsViewController.self) { resolver in
-            ResultsViewController(barcodeValidator: resolver.resolve(BarcodeValidator.self)!)
+            ResultsViewController(barcodeValidator: resolver.resolve(BarcodeValidator.self)!, analyticsProvider: resolver.resolve(AnalyticsProvider.self)!)
         }
 
         container.register(ScanCodeViewController.self) { resolver in
-            ScanCodeViewController(flashlightManager: resolver.resolve(FlashlightManager.self)!)
+            ScanCodeViewController(flashlightManager: resolver.resolve(FlashlightManager.self)!, analyticsProvider: resolver.resolve(AnalyticsProvider.self)!)
         }
 
         return container

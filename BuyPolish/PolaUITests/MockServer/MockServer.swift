@@ -28,6 +28,8 @@ final class MockServer {
         CodeData.Staropramen,
         CodeData.Tymbark,
         CodeData.Naleczowianka,
+        CodeData.Krasnystaw,
+        CodeData.Lidl,
     ]
 
     private func configureResponses() {

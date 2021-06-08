@@ -1,0 +1,17 @@
+{
+  "product_id": 5449354,
+  "code": "9788310131539",
+  "name": "Kod ISBN/ISSN/ISMN",
+  "card_type": "type_white",
+  "altText": "Zeskanowany kod jest kodem ISBN/ISSN/ISMN dotyczącym książki,  czasopisma lub albumu muzycznego. Wydawnictwa tego typu nie są aktualnie w obszarze zainteresowań Poli.",
+  "report": {
+    "text": "To nie jest książka, czasopismo lub album muzyczny? Prosimy o zgłoszenie",
+    "button_text": "Zgłoś",
+    "button_type": "type_white"
+  },
+  "donate": {
+    "show_button": true,
+    "url": "https://klubjagiellonski.pl/zbiorka/wspieraj-aplikacje-pola/",
+    "title": "Wspieraj aplikację Pola"
+  }
+}
